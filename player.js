@@ -1,9 +1,8 @@
-
 let jsonData = "";
 const stepsData = {};
 
 
-function nextStep(stepID) {
+const nextStep = stepID => {
     const { selector } = stepsData[stepID];
     const nextID = stepsData[stepID].next;
     if (nextID) {
@@ -13,7 +12,7 @@ function nextStep(stepID) {
     }
 }
 
-function prevStep(stepID) {
+const prevStep = stepID => {
     const { selector } = stepsData[stepID];
     const prevID = stepsData[stepID].prev;
     if (prevID) {
@@ -23,7 +22,7 @@ function prevStep(stepID) {
     }
 }
 
-function closeStep(stepID) {
+const closeStep = stepID => {
     const selector = stepsData[stepID].selector;
     if (selector) {
         $(selector).popover("hide");
@@ -31,65 +30,40 @@ function closeStep(stepID) {
 }
 
 
-function loadJs(filename) {
-    var tag = document.createElement('script');
-    tag.setAttribute("type", "text/javascript");
-    tag.setAttribute("src", filename);
-    document.getElementsByTagName("head")[0].appendChild(tag);
-}
+const init = () => {
 
 
+    const loadJs = filename => {
+        var tag = document.createElement('script');
+        tag.setAttribute("type", "text/javascript");
+        tag.setAttribute("src", filename);
+        document.getElementsByTagName("head")[0].appendChild(tag);
+    }
 
-function init() {
-
-
-    loadJs("https://code.jquery.com/jquery-3.4.1.min.js");
-
-    var waitForJQuery = setInterval(function () {
-        if (typeof jQuery != 'undefined') {
+    const waitForJQuery = setInterval(() => {
+        if (typeof jQuery !== 'undefined') {
             $ = jQuery;
-            $("head").append(`
-            <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" 
-                integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" 
-                crossorigin="anonymous"
-            ></script>`);
+            $("head").append(popperScript);
             clearInterval(waitForJQuery);
-            waitForBootstrap();
+            waitForBootstrapScripts();
         }
-    }, 50);
+    }, 25);
 
-    function waitForBootstrap() {
-        const waitForBootStrapInterval = setInterval(function () {
+    const waitForBootstrapScripts = () => {
+        const waitForBootStrapInterval = setInterval(() => {
             if (typeof Popper !== 'undefined') {
-                $("head").append(`
-                            <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" 
-                                rel="stylesheet" 
-                                integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" 
-                                crossorigin="anonymous"
-                            >
-                            <script 
-                                src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" 
-                                integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" 
-                                crossorigin="anonymous"
-                            ></script>
-                            <script src="https://kit.fontawesome.com/4b7beec3c8.js" crossorigin="anonymous"></script>
-                            <link rel="stylesheet" 
-                                href="https://raw.githack.com/amirf2/gls-for-google/master/style.css"
-                             />
-                `);
+                $("head").append(scripts);
                 clearInterval(waitForBootStrapInterval);
                 fetchData();
             }
-        }, 50);
+        }, 25);
     }
 
 
-
-
-    function fetchData() {
+    const fetchData = () => {
         $.getJSON(
             "https://guidedlearning.oracle.com/player/latest/api/scenario/get/v_IlPvRLRWObwLnV5sTOaw/5szm2kaj/?callback=?",
-            function (result) {
+            result => {
                 jsonData = result;
                 const { steps } = jsonData.data.structure;
                 createStepsData(steps);
@@ -99,44 +73,42 @@ function init() {
     }
 
 
-    function checkIfLastStep(stepID) {
-
+    const checkIfLastStep = stepID => {
         const next = stepsData[stepID].next;
         if (next && stepsData[next]) {
-            console.log(stepsData[next]);
             return stepsData[next].type === "closeScenario";
         }
 
     }
 
-
-    function createContent(selector, content, stepID) {
+    const createContent = (selector, content, stepID) => {
         content = content["#content"] || content;
-        console.log(stepsData[stepID].next);
+        //console.log(stepsData[stepID].next);
         const prevButton = stepID === "startStep" ? "" : `<button onClick="prevStep('${stepID}')" class="btn btn-primary btn-xs p-2 mr-1 gls-font-size">Step Back</button>`
         const nextButton = stepsData[stepID].next === "eol0" ? "" : `<button onClick="nextStep('${stepID}')" class="btn btn-primary btn-xs p-2 mr-1 gls-font-size">Next</button>`
         return `
+                <div class="popover-content">
                 ${content}
+                </div>
                 <div class="d-flex">
                   ${prevButton}
                   ${nextButton}
+                  <p class="mt-1 mb-1 ml-auto">step ${stepsData[stepID].number} of ${Object.keys(stepsData).length - 1}</p>
                 </div>
                 `;
     }
 
-    function createTitle(selector, stepID) {
-        return `
-                <div class="d-flex justify-content-between">
+
+    const createTitle = (selector, stepID) => {
+        return `<div class="d-flex justify-content-between">
                     <span class="popover-title mr-5">GLS</span> 
                         <button onClick="closeStep('${stepID}')" class="btn btn-secondary btn-xs p-2 justify-content-right">X</button>
                     </span>
-                </div>
-            `;
+                </div>`;
     }
 
-    function jqueryFunc(selector, content, stepID, placement, chooseSelector, trigger = "manual") {
-        console.log(trigger);
-        console.log("jqueryFunc: ", selector, stepID, placement, chooseSelector);
+
+    const jqueryFunc = (selector, content, stepID, placement, chooseSelector, trigger = "manual") => {
         $(function () {
             $(selector).popover({
                 container: "body",
@@ -151,77 +123,89 @@ function init() {
         });
     }
 
-    function setPopOver(selector) {
-        $(selector)
-            .on("mouseenter", function () {
-                $(selector).popover("show");
-                $(".popover").on("mouseleave", function () {
-                    $(selector).popover("hide");
-                });
-            })
-            .on("mouseleave", function () {
-                setTimeout(function () {
-                    if (!$(".popover:hover").length) {
-                        $(selector).popover("hide");
-                    }
-                }, 300);
-            });
-    }
 
-    function startGuide(selector) {
+    const startGuide = selector => {
         setTimeout(function () {
             $(selector).popover("show");
         }, 100);
     }
 
 
-    function createPopoversForGoogle(steps) {
+    const createPopoversForGoogle = steps => {
         createIntro();
-        for (let i = 0; i < steps.length - 1; i++) {
-            const stepID = steps[i].id;
-            const { selector, contents, type, placement } = steps[i].action;
-            jqueryFunc(selector, contents, stepID, placement, true);
+        for (const step of steps) {
+            if (step.action.type !== 'closeScenario') {
+                const stepID = step.id;
+                const { selector, contents, type, placement } = step.action;
+                jqueryFunc(selector, contents, stepID, placement, true);
+            }
         }
         startGuide("#startStep");
     }
 
 
-    function createStepsData(steps) {
-        //console.log("in createStepsData");
+    const createStepsData = steps => {
         let prev = null;
-        for (const step of steps) {
+        for (const [index, step] of steps.entries()) {
             const { selector } = step.action
             const next = step.followers.length === 1 ? step.followers[0].next : null;
             stepsData[step.id] = {
                 prev: prev ? prev : null,
                 next: next,
                 selector: selector,
-                type: step.action.type
+                type: step.action.type,
+                number: index + 2
             }
             prev = step.id;
         }
         console.log(stepsData);
     }
 
-    function createIntro() {
+
+    createIntro = () => {
         const stepID = "startStep";
         const selector = "#startStep";
         const content = '<p>Welcome To GLS for Google !</p>'
         const placement = "right"
-        $("body").append(`
-            <div style="position: absolute;">
-            <a tabindex="0" id="startStep"><i class="fas fa-info-circle fa-2x"></i></a>
-            </div>`
-        );
+        $("body").append(introElement);
         stepsData["startStep"] = {
             prev: stepID,
             next: jsonData.data.structure.steps[0].id,
             selector: selector,
-            type: "intro"
+            type: "intro",
+            number: 1
         }
         jqueryFunc(selector, content, stepID, placement, false, "focus");
     }
 
+
+    const scripts = `<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" 
+                        rel="stylesheet" 
+                        integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" 
+                        crossorigin="anonymous">
+                    <script 
+                        src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" 
+                        integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" 
+                        crossorigin="anonymous">
+                    </script>
+                    <script src="https://kit.fontawesome.com/4b7beec3c8.js" crossorigin="anonymous"></script>
+                    <link rel="stylesheet" href="https://raw.githack.com/amirf2/gls-for-google/master/style.css"/>`;
+
+    const popperScript = `<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" 
+                            integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" 
+                            crossorigin="anonymous">
+                          </script>`;
+
+
+
+    const introElement = `<div class="m-2 intro-step">
+                            <a tabindex="0" id="startStep"><i class="fas fa-info-circle fa-2x"></i></a>
+                         </div>`;
+
+
+    loadJs("https://code.jquery.com/jquery-3.4.1.min.js");
+
 }
+
 
 init();
