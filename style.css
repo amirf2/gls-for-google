@@ -10,7 +10,12 @@
     font-size:17px;
 }
 
+.intro-step{
+    position: absolute;
+    cursor: pointer;
+}
 
 *, ::after, ::before {
     box-sizing: content-box;
 }
+
