@@ -52,21 +52,37 @@ function init() {
             <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" 
                 integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" 
                 crossorigin="anonymous"
-            ></script>
-            <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" 
-                rel="stylesheet" 
-                integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" 
-                crossorigin="anonymous"
-            >
-            <script 
-                src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" 
-                integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" 
-                crossorigin="anonymous"
             ></script>`);
             clearInterval(waitForJQuery);
-            fetchData();
+            waitForBootstrap();
         }
     }, 50);
+
+    function waitForBootstrap() {
+        const waitForBootStrapInterval = setInterval(function () {
+            if (typeof Popper !== 'undefined') {
+                $("head").append(`
+                            <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" 
+                                rel="stylesheet" 
+                                integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" 
+                                crossorigin="anonymous"
+                            >
+                            <script 
+                                src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" 
+                                integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" 
+                                crossorigin="anonymous"
+                            ></script>
+                            <script src="https://kit.fontawesome.com/4b7beec3c8.js" crossorigin="anonymous"></script>
+                            <link rel="stylesheet" 
+                                href="https://raw.githack.com/amirf2/gls-for-google/master/style.css"
+                             />
+                `);
+                clearInterval(waitForBootStrapInterval);
+                fetchData();
+            }
+        }, 50);
+    }
+
 
 
 
@@ -83,43 +99,56 @@ function init() {
     }
 
 
+    function checkIfLastStep(stepID) {
+
+        const next = stepsData[stepID].next;
+        if (next && stepsData[next]) {
+            console.log(stepsData[next]);
+            return stepsData[next].type === "closeScenario";
+        }
+
+    }
 
 
-    function createContent(selector, content = "content was not provied", stepID) {
+    function createContent(selector, content, stepID) {
+        content = content["#content"] || content;
+        console.log(stepsData[stepID].next);
+        const prevButton = stepID === "startStep" ? "" : `<button onClick="prevStep('${stepID}')" class="btn btn-primary btn-xs p-2 mr-1 gls-font-size">Step Back</button>`
+        const nextButton = stepsData[stepID].next === "eol0" ? "" : `<button onClick="nextStep('${stepID}')" class="btn btn-primary btn-xs p-2 mr-1 gls-font-size">Next</button>`
         return `
-                ${content["#content"]}
+                ${content}
                 <div class="d-flex">
-                  <button onClick="prevStep(${stepID})" class="btn btn-primary btn-xs p-2 mr-1 gls-font-size">Step Back</button>
-                  <button onClick="nextStep(${stepID})" class="btn btn-primary btn-xs p-2 mr-1 gls-font-size">Next</button>
+                  ${prevButton}
+                  ${nextButton}
                 </div>
                 `;
     }
 
     function createTitle(selector, stepID) {
         return `
-                <div>
-                    <span class="d-flex">
+                <div class="d-flex justify-content-between">
                     <span class="popover-title mr-5">GLS</span> 
-                        <button class="btn btn-secondary btn-xs p-2 ml-5 mr-2">Remind me later</button>
-                        <button onClick="closeStep(${stepID})" class="btn btn-secondary btn-xs p-2">X</button>
+                        <button onClick="closeStep('${stepID}')" class="btn btn-secondary btn-xs p-2 justify-content-right">X</button>
                     </span>
                 </div>
             `;
     }
 
-    function jqueryFunc(selector, content, stepID) {
+    function jqueryFunc(selector, content, stepID, placement, chooseSelector, trigger = "manual") {
+        console.log(trigger);
+        console.log("jqueryFunc: ", selector, stepID, placement, chooseSelector);
         $(function () {
             $(selector).popover({
                 container: "body",
                 html: true,
-                trigger: "manual",
-                placement: "bottom",
+                trigger: trigger,
+                placement: placement,
+                selector: chooseSelector ? selector : false,
                 sanitize: false,
                 content: createContent(selector, content, stepID),
                 title: createTitle(selector, stepID)
             });
         });
-        setPopOver(selector);
     }
 
     function setPopOver(selector) {
@@ -147,17 +176,13 @@ function init() {
 
 
     function createPopoversForGoogle(steps) {
+        createIntro();
         for (let i = 0; i < steps.length - 1; i++) {
             const stepID = steps[i].id;
-            const { selector, contents, type } = steps[i].action;
-
-            jqueryFunc(selector, contents, stepID);
-            if (type != "closeScenario") {
-            }
+            const { selector, contents, type, placement } = steps[i].action;
+            jqueryFunc(selector, contents, stepID, placement, true);
         }
-        startGuide(steps[0].action.selector);
-
-
+        startGuide("#startStep");
     }
 
 
@@ -165,21 +190,37 @@ function init() {
         //console.log("in createStepsData");
         let prev = null;
         for (const step of steps) {
-            if (step.action.type === "closeScenario")
-                break;
             const { selector } = step.action
             const next = step.followers.length === 1 ? step.followers[0].next : null;
             stepsData[step.id] = {
                 prev: prev ? prev : null,
                 next: next,
-                selector: selector
+                selector: selector,
+                type: step.action.type
             }
             prev = step.id;
         }
-        //console.log(stepsData);
-
+        console.log(stepsData);
     }
 
+    function createIntro() {
+        const stepID = "startStep";
+        const selector = "#startStep";
+        const content = '<p>Welcome To GLS for Google !</p>'
+        const placement = "right"
+        $("body").append(`
+            <div style="position: absolute;">
+            <a tabindex="0" id="startStep"><i class="fas fa-info-circle fa-2x"></i></a>
+            </div>`
+        );
+        stepsData["startStep"] = {
+            prev: stepID,
+            next: jsonData.data.structure.steps[0].id,
+            selector: selector,
+            type: "intro"
+        }
+        jqueryFunc(selector, content, stepID, placement, false, "focus");
+    }
 
 }
 
