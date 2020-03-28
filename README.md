@@ -1,5 +1,9 @@
 # GLS for Google.com
 
+## Demo
+
+![](https://s5.gifyu.com/images/gls-for-google.gif)
+
 ## Introduction
 
 This project is a minified guided learning solution for [Google](https://www.google.com/?hl=en). I implemented this guide using jQuery For DOM manipulation and Bootstrap 4 For styling the guide popovers.
