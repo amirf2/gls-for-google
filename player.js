@@ -108,7 +108,6 @@ const init = () => {
 
 
     const createPopoversForGoogle = steps => {
-        createIntro();
         for (const step of steps) {
             if (step.action.type !== 'closeScenario') {
                 const stepID = step.id;
@@ -116,6 +115,7 @@ const init = () => {
                 jqueryFunc(selector, contents, stepID, placement, true);
             }
         }
+        createIntro();
         startGuide("#startStep");
     }
 
@@ -146,14 +146,16 @@ const init = () => {
         const selector = "#startStep";
         const content = '<p>Click here to start the guide</p>'
         const placement = "right"
+        const nextStepID = jsonData.data.structure.steps[0].id;
         $("body").append(introElement);
         stepsData["startStep"] = {
             prev: stepID,
-            next: jsonData.data.structure.steps[0].id,
+            next: nextStepID,
             selector: selector,
             type: "intro",
             number: 1
         }
+        stepsData[nextStepID].prev = "startStep"
         jqueryFunc(selector, content, stepID, placement, false, "focus");
     }
 
