@@ -77,10 +77,19 @@ const init = () => {
         $.getJSON(guide, result => {
                 jsonData = result;
                 const { steps } = jsonData.data.structure;
+                fixBug(steps);
                 createStepsData(steps);
                 createPopoversForGoogle(steps);
             }
         );
+    }
+
+    const fixBug = (steps) => {
+        for (const step of steps){
+            //Fix bug in JSON Data - selector return 2 elements instead of one so two popovers will open instead of one.
+            if (step.action.selector === "input[value=\"Google Search\"]")
+                step.action.selector="div.FPdoLc input.gNO89b";
+        }
     }
 
 
@@ -128,10 +137,6 @@ const init = () => {
             stepsData[step.id].number = index + INTRO_AND_END_STEPS;
             initStepObj(next);
             stepsData[next].prev = step.id;
-
-            //Fix bug in JSON Data - selector return 2 elements instead of one so two popovers will open instead of one.
-            if (stepsData[step.id].selector==="input[value=\"Google Search\"]")
-                stepsData[step.id].selector="div.FPdoLc input.gNO89b";
         }
     }
 
@@ -185,7 +190,7 @@ const init = () => {
             $(selector).popover({
                 container: "body",
                 html: true,
-                animation: false,
+                animation: true,
                 trigger: trigger,
                 placement: placement,
                 selector: chooseSelector ? selector : false,
@@ -313,13 +318,14 @@ const nextButtonTest = (selector, contents, id, steps, nextStepID) => {
     return testPassed;
 }
 
-const closeButtonTest = (selector, contents, id) => {
+const closeButtonTest = async (selector, contents, id) => {
     let testPassed = true;
     $(selector).popover("show");
     const innerText = $.parseHTML(contents)[0].innerText // get the text from the HTML string of the JSON step data
     const beforelength = $(`.popover-content:contains(${innerText})`).length;
     const closeButton = $(`button[onClick="closeStep('${id}')"]`);
     closeButton.click();
+    await sleep(100) // Wait for the animation of the popover to disappear 
     const afterlength = $(`.popover-content:contains(${innerText})`).length;
     if (afterlength === beforelength){
         testPassed=false;
@@ -327,6 +333,12 @@ const closeButtonTest = (selector, contents, id) => {
     return testPassed;
 }
 
+
+const sleep = (milliseconds) => {
+    return new Promise(resolve => setTimeout(resolve, milliseconds))
+  }
+
+  
 
 const getStepByID = (steps, id) => {
     for (const step of steps){
