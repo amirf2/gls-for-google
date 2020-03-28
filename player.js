@@ -1,6 +1,10 @@
 let jsonData = "";
 const stepsData = {};
+const INTRO_AND_END_STEPS = 2;
 
+/*--------------------------------------------------------------------
+|               Event methods to handle popovers
+*-------------------------------------------------------------------*/
 
 const nextStep = stepID => {
     const { selector } = stepsData[stepID];
@@ -12,6 +16,7 @@ const nextStep = stepID => {
     }
 }
 
+
 const prevStep = stepID => {
     const { selector } = stepsData[stepID];
     const prevID = stepsData[stepID].prev;
@@ -21,6 +26,7 @@ const prevStep = stepID => {
         $(prev.selector).popover("show");
     }
 }
+
 
 const closeStep = stepID => {
     const selector = stepsData[stepID].selector;
@@ -32,6 +38,9 @@ const closeStep = stepID => {
 
 const init = () => {
 
+/*-------------------------------------------------------------------
+|              Loading Scripts And Fetch Data Methods
+*-------------------------------------------------------------------*/
 
     const loadJs = filename => {
         var tag = document.createElement('script');
@@ -40,16 +49,20 @@ const init = () => {
         document.getElementsByTagName("head")[0].appendChild(tag);
     }
 
-    const waitForJQuery = setInterval(() => {
+    loadJs("https://code.jquery.com/jquery-3.4.1.min.js");
+
+
+    const waitForJQueryInterval = setInterval(() => {
         if (typeof jQuery !== 'undefined') {
             $ = jQuery;
             $("head").append(popperScript);
-            clearInterval(waitForJQuery);
-            waitForBootstrapScripts();
+            clearInterval(waitForJQueryInterval);
+            waitForBootstrapToLoad();
         }
     }, 25);
 
-    const waitForBootstrapScripts = () => {
+
+    const waitForBootstrapToLoad = () => {
         const waitForBootStrapInterval = setInterval(() => {
             if (typeof Popper !== 'undefined') {
                 $("head").append(scripts);
@@ -61,9 +74,7 @@ const init = () => {
 
 
     const fetchData = () => {
-        $.getJSON(
-            "https://guidedlearning.oracle.com/player/latest/api/scenario/get/v_IlPvRLRWObwLnV5sTOaw/5szm2kaj/?callback=?",
-            result => {
+        $.getJSON(guide, result => {
                 jsonData = result;
                 const { steps } = jsonData.data.structure;
                 createStepsData(steps);
@@ -73,17 +84,77 @@ const init = () => {
     }
 
 
+
+/*-------------------------------------------------------------------
+|              Creating Popovers and Content Methods
+*-------------------------------------------------------------------*/
+
+
     const checkIfLastStep = stepID => {
-        const next = stepsData[stepID].next;
+        const {next} = stepsData[stepID];
         if (next && stepsData[next]) {
             return stepsData[next].type === "closeScenario";
         }
-
     }
+
+
+    const createPopoversForGoogle = steps => {
+        createIntro();
+        for (const step of steps) {
+            if (step.action.type !== 'closeScenario') {
+                const stepID = step.id;
+                const { selector, contents, type, placement } = step.action;
+                jqueryFunc(selector, contents, stepID, placement, true);
+            }
+        }
+        startGuide("#startStep");
+    }
+
+
+    const initStepObj = (id) =>{
+        if (!stepsData[id])
+            stepsData[id] = {};
+    }
+
+
+    const createStepsData = steps => {
+        for (const [index, step] of steps.entries()) {
+            const { selector , type} = step.action
+            const next = step.followers.length === 1 ? step.followers[0].next : null;
+            initStepObj(step.id);
+            stepsData[step.id].next = next;
+            stepsData[step.id].selector = selector;
+            stepsData[step.id].type = type;
+            stepsData[step.id].number = index + INTRO_AND_END_STEPS;
+            initStepObj(next);
+            stepsData[next].prev = step.id;
+
+            //Fix bug in JSON Data - selector return 2 elements instead of one so two popovers will open instead of one.
+            if (stepsData[step.id].selector==="input[value=\"Google Search\"]")
+                stepsData[step.id].selector="div.FPdoLc input.gNO89b";
+        }
+    }
+
+
+    createIntro = () => {
+        const stepID = "startStep";
+        const selector = "#startStep";
+        const content = '<p>Click here to start the guide</p>'
+        const placement = "right"
+        $("body").append(introElement);
+        stepsData["startStep"] = {
+            prev: stepID,
+            next: jsonData.data.structure.steps[0].id,
+            selector: selector,
+            type: "intro",
+            number: 1
+        }
+        jqueryFunc(selector, content, stepID, placement, false, "focus");
+    }
+
 
     const createContent = (selector, content, stepID) => {
         content = content["#content"] || content;
-        //console.log(stepsData[stepID].next);
         const prevButton = stepID === "startStep" ? "" : `<button onClick="prevStep('${stepID}')" class="btn btn-primary btn-xs p-2 mr-1 gls-font-size">Step Back</button>`
         const nextButton = stepsData[stepID].next === "eol0" ? "" : `<button onClick="nextStep('${stepID}')" class="btn btn-primary btn-xs p-2 mr-1 gls-font-size">Next</button>`
         return `
@@ -93,7 +164,7 @@ const init = () => {
                 <div class="d-flex">
                   ${prevButton}
                   ${nextButton}
-                  <p class="mt-1 mb-1 ml-auto">step ${stepsData[stepID].number} of ${Object.keys(stepsData).length - 1}</p>
+                  <p class="mt-1 mb-1 ml-auto">step ${stepsData[stepID].number} of ${Object.keys(stepsData).length - INTRO_AND_END_STEPS}</p>
                 </div>
                 `;
     }
@@ -101,11 +172,12 @@ const init = () => {
 
     const createTitle = (selector, stepID) => {
         return `<div class="d-flex justify-content-between">
-                    <span class="popover-title mr-5">GLS</span> 
+                    <span class="popover-title mr-5">GLS - Google.com</span> 
                         <button onClick="closeStep('${stepID}')" class="btn btn-secondary btn-xs p-2 justify-content-right">X</button>
                     </span>
                 </div>`;
     }
+
 
 
     const jqueryFunc = (selector, content, stepID, placement, chooseSelector, trigger = "manual") => {
@@ -113,6 +185,7 @@ const init = () => {
             $(selector).popover({
                 container: "body",
                 html: true,
+                animation: false,
                 trigger: trigger,
                 placement: placement,
                 selector: chooseSelector ? selector : false,
@@ -131,53 +204,13 @@ const init = () => {
     }
 
 
-    const createPopoversForGoogle = steps => {
-        createIntro();
-        for (const step of steps) {
-            if (step.action.type !== 'closeScenario') {
-                const stepID = step.id;
-                const { selector, contents, type, placement } = step.action;
-                jqueryFunc(selector, contents, stepID, placement, true);
-            }
-        }
-        startGuide("#startStep");
-    }
 
+/*------------------------------------------------------------------------------------------------------------------------------
+|                                               Data And Scripts HTML Elements
+*-----------------------------------------------------------------------------------------------------------------------------*/
 
-    const createStepsData = steps => {
-        let prev = null;
-        for (const [index, step] of steps.entries()) {
-            const { selector } = step.action
-            const next = step.followers.length === 1 ? step.followers[0].next : null;
-            stepsData[step.id] = {
-                prev: prev ? prev : null,
-                next: next,
-                selector: selector,
-                type: step.action.type,
-                number: index + 2
-            }
-            prev = step.id;
-        }
-        console.log(stepsData);
-    }
-
-
-    createIntro = () => {
-        const stepID = "startStep";
-        const selector = "#startStep";
-        const content = '<p>Welcome To GLS for Google !</p>'
-        const placement = "right"
-        $("body").append(introElement);
-        stepsData["startStep"] = {
-            prev: stepID,
-            next: jsonData.data.structure.steps[0].id,
-            selector: selector,
-            type: "intro",
-            number: 1
-        }
-        jqueryFunc(selector, content, stepID, placement, false, "focus");
-    }
-
+    
+    const guide = "https://guidedlearning.oracle.com/player/latest/api/scenario/get/v_IlPvRLRWObwLnV5sTOaw/5szm2kaj/?callback=?"
 
     const scripts = `<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" 
                         rel="stylesheet" 
@@ -198,14 +231,117 @@ const init = () => {
 
 
 
-    const introElement = `<div class="m-2 intro-step">
+    const introElement = `<div class="m-2 intro-step" style="position: absolute; cursor: pointer;">
                             <a tabindex="0" id="startStep"><i class="fas fa-info-circle fa-2x"></i></a>
                          </div>`;
-
-
-    loadJs("https://code.jquery.com/jquery-3.4.1.min.js");
 
 }
 
 
 init();
+
+
+
+/*-----------------------------------------------------------------------------------------------
+|                                         Testing
+*-----------------------------------------------------------------------------------------------*/
+
+
+
+
+const verifyTest = (test) => {
+    let testPassed = true;
+    const { steps } = jsonData.data.structure;
+    for (const step of steps){
+        const [selector, contents, nextStepID] = destructStep(step);
+        if (contents){
+            testPassed  = testPassed && test(selector, contents, step.id, steps, nextStepID);
+        }
+    }
+    return testPassed;
+}
+
+
+const runTests = () => {
+    const { steps } = jsonData.data.structure;
+    let testsPassed = verifyTest(validateContent) && verifyTest(nextButtonTest) && verifyTest(closeButtonTest);
+    if (testsPassed){
+        console.log("All Tests Passed");
+    } else {
+        console.log("Testing Failed");
+    }
+}
+
+
+const validateContent = (selector, contents) => {
+    let testPassed = true;
+    const innerText = $.parseHTML(contents)[0].innerText // get the text from the HTML string of the JSON step data
+    $(selector).popover("hide");
+    const beforelength = $(`.popover-content:contains(${innerText})`).length;
+    $(selector).popover("show");
+    const afterlength = $(`.popover-content:contains(${innerText})`).length;
+    $(selector).popover("hide");
+    if (afterlength === beforelength){
+        testPassed=false;
+    }
+    return testPassed;
+}
+
+
+const nextButtonTest = (selector, contents, id, steps, nextStepID) => {
+    const testPassed = true;
+    let nextStepAppear = true;
+    $(selector).popover("show");
+    const nextStep = getStepByID(steps, nextStepID);
+    if (nextStep){
+        const [nextStepselector, nextStepcontents] = destructStep(nextStep);
+        if (nextStepselector){
+            $(nextStepselector).popover("hide");
+            const nextButton = $(`button[onClick="nextStep('${id}')"]`);
+            if (nextButton){
+                nextButton.click();
+                const nextStepInnerText = $.parseHTML(nextStepcontents)[0].innerText
+                nextStepAppear = $(`.popover-content:contains(${nextStepInnerText})`).length > 0;
+                $(nextStepselector).popover("hide");
+            }
+        }
+    }
+    $(selector).popover("hide");
+    if (!nextStepAppear){
+        testPassed=false;
+    }
+    return testPassed;
+}
+
+const closeButtonTest = (selector, contents, id) => {
+    let testPassed = true;
+    $(selector).popover("show");
+    const innerText = $.parseHTML(contents)[0].innerText // get the text from the HTML string of the JSON step data
+    const beforelength = $(`.popover-content:contains(${innerText})`).length;
+    const closeButton = $(`button[onClick="closeStep('${id}')"]`);
+    closeButton.click();
+    const afterlength = $(`.popover-content:contains(${innerText})`).length;
+    if (afterlength === beforelength){
+        testPassed=false;
+    }
+    return testPassed;
+}
+
+
+const getStepByID = (steps, id) => {
+    for (const step of steps){
+        if (step.id===id)
+            return step;
+    }
+}
+
+
+const destructStep = (step) => {
+    const {action, followers} = step;
+    const {selector="", contents=""} = action;
+    const extractContent = contents? contents["#content"] : contents;
+    const {next=""} = followers.length>0? followers[0] : [];
+    return [selector, extractContent, next];
+}
+
+
