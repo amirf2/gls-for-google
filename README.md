@@ -20,11 +20,10 @@ This project is a minified guided learning solution for [Google](https://www.goo
   * The first guide popover should appear now, in the top left corner. a black information button should appear there as well, in order to play the guide again if necessary.
 
 ## Testing
+  * #### Check for content validation (content from JSON data should appear when we activating the popover that corresponding to the selector element) 
+  * #### Check for button validation (popover should switch when we press prev/next buttons and popover should disappear when we press the 'X' Button ) 
 
-To run the tests, execute in devtools console:
+ * To run the tests, execute in devtools console:
 ```
   runTests();
 ```
-  *  Checking 
-  *  bye
-
